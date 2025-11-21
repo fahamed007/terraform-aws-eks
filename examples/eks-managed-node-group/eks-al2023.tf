@@ -3,7 +3,7 @@ module "eks_al2023" {
   version = "~> 21.0"
 
   name               = "${local.name}-al2023"
-  kubernetes_version = "1.33"
+  kubernetes_version = "1.29"
 
   # EKS Addons
   addons = {
@@ -23,8 +23,8 @@ module "eks_al2023" {
   eks_managed_node_groups = {
     example = {
       # Starting on 1.30, AL2023 is the default AMI type for EKS managed node groups
-      instance_types = ["m6i.large"]
-      ami_type       = "AL2023_x86_64_STANDARD"
+      instance_types = ["t3.micro"]
+      ami_type       = "AL2_x86_64"
 
       min_size = 2
       max_size = 5
