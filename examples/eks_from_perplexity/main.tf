@@ -103,7 +103,7 @@ resource "aws_iam_role_policy_attachment" "ec2_container_registry_policy" {
 resource "aws_eks_cluster" "eks_cluster" {
   name     = var.cluster_name
   role_arn = aws_iam_role.eks_cluster_role.arn
-  version  = "1.29"
+  version  = "1.30"
 
   vpc_config {
     subnet_ids = aws_subnet.eks_subnets[*].id
@@ -117,7 +117,7 @@ resource "aws_eks_node_group" "managed_nodes" {
   node_group_name = "managed-node-group"
   node_role_arn   = aws_iam_role.eks_node_role.arn
   subnet_ids      = aws_subnet.eks_subnets[*].id
-  ami_type        = "AL2_x86_64"
+  ami_type        = "AL2023_x86_64_STANDARD"
   instance_types  = ["t3.medium"]
 
   scaling_config {
