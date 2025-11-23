@@ -260,7 +260,7 @@ resource "aws_eks_cluster" "this" {
 }
 
 #######################################
-# AL2 EKS-optimized AMI lookup        #
+# AL2 EKS-optimized AMI lookup        ##
 #######################################
 
 data "aws_ami" "eks_al2" {
