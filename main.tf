@@ -300,7 +300,9 @@ resource "aws_launch_template" "mng_lt" {
   }
 
   metadata_options {
-    http_tokens = "optional"
+    http_endpoint = "enabled"
+    http_tokens = "required"
+    http_put_response_hop_limit = 1
   }
 
   tag_specifications {
