@@ -289,6 +289,7 @@ resource "aws_launch_template" "mng_lt" {
   name_prefix   = "example-eks-mng-"
   image_id      = data.aws_ami.eks_al2.id
   instance_type = "t3.medium"
+  key_name      = "terraform-key_2025_2"
 
   block_device_mappings {
     device_name = "/dev/xvda"
@@ -330,9 +331,9 @@ resource "aws_eks_node_group" "this" {
   ]
 
   scaling_config {
-    desired_size = 3
-    max_size     = 5
-    min_size     = 3
+    desired_size = 2
+    max_size     = 3
+    min_size     = 2
   }
 
   launch_template {
