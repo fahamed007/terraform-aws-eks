@@ -1,13 +1,20 @@
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = ">= 6.0.0"
+    }
+  }
+  required_version = ">= 1.5.0"
+}
+
 provider "aws" {
   region = "ap-south-1"
 }
 
-####################
-# VPC & Networking
-####################
 module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
-  version = "~> 3.0"
+  version = "6.5.1"
 
   name = "eks-vpc"
   cidr = "10.0.0.0/16"
@@ -19,18 +26,17 @@ module "vpc" {
   enable_nat_gateway = true
   single_nat_gateway = true
 
+  enable_dns_hostnames = true
+  enable_dns_support   = true
+
   tags = {
-    "Name" = "eks-vpc"
+    Name = "eks-vpc"
   }
 }
 
-####################
-# IAM Roles and Instance Profiles
-####################
 data "aws_iam_policy_document" "eks_assume_role_policy" {
   statement {
     actions = ["sts:AssumeRole"]
-
     principals {
       type        = "Service"
       identifiers = ["eks.amazonaws.com"]
@@ -39,7 +45,7 @@ data "aws_iam_policy_document" "eks_assume_role_policy" {
 }
 
 resource "aws_iam_role" "eks_cluster_role" {
-  name = "eks-cluster-role"
+  name               = "eks-cluster-role"
   assume_role_policy = data.aws_iam_policy_document.eks_assume_role_policy.json
 }
 
@@ -56,7 +62,6 @@ resource "aws_iam_role_policy_attachment" "cluster_AmazonEKSVPCResourceControlle
 data "aws_iam_policy_document" "node_assume_role_policy" {
   statement {
     actions = ["sts:AssumeRole"]
-
     principals {
       type        = "Service"
       identifiers = ["ec2.amazonaws.com"]
@@ -65,7 +70,7 @@ data "aws_iam_policy_document" "node_assume_role_policy" {
 }
 
 resource "aws_iam_role" "eks_node_group_role" {
-  name               = "eks-node-group-role"
+  name               = "eks-node-group-role3"
   assume_role_policy = data.aws_iam_policy_document.node_assume_role_policy.json
 }
 
@@ -85,13 +90,10 @@ resource "aws_iam_role_policy_attachment" "node_AmazonEKS_CNI_Policy" {
 }
 
 resource "aws_iam_instance_profile" "node_instance_profile" {
-  name = "eks-node-instance-profile"
+  name = "eks-node-instance-profile2"
   role = aws_iam_role.eks_node_group_role.name
 }
 
-####################
-# EKS Cluster
-####################
 resource "aws_eks_cluster" "eks_cluster" {
   name     = "example-eks-cluster"
   role_arn = aws_iam_role.eks_cluster_role.arn
@@ -108,15 +110,12 @@ resource "aws_eks_cluster" "eks_cluster" {
   ]
 }
 
-####################
-# Launch Template for Managed Node Group
-####################
 data "aws_ami" "eks_worker_ami" {
   most_recent = true
 
   filter {
     name   = "name"
-    values = ["amazon-eks-node-1.24-v*"]
+    values = ["amazon-eks-node-1.32-v*"]
   }
 
   filter {
@@ -124,7 +123,7 @@ data "aws_ami" "eks_worker_ami" {
     values = ["x86_64"]
   }
 
-  owners = ["602401143452"] # Amazon EKS AMI account ID
+  owners = ["602401143452"]
 }
 
 resource "aws_launch_template" "eks_nodes_lt" {
@@ -138,9 +137,7 @@ resource "aws_launch_template" "eks_nodes_lt" {
   EOF
   )
 
-  iam_instance_profile {
-    name = aws_iam_instance_profile.node_instance_profile.name
-  }
+  # iam_instance_profile removed as per the fix
 
   key_name = "terraform-key_2025_2"
 
@@ -148,14 +145,11 @@ resource "aws_launch_template" "eks_nodes_lt" {
     resource_type = "instance"
 
     tags = {
-      "Name" = "eks-node-instance"
+      Name = "eks-node-instance"
     }
   }
 }
 
-####################
-# Managed Node Group using Launch Template
-####################
 resource "aws_eks_node_group" "managed_nodes" {
   cluster_name    = aws_eks_cluster.eks_cluster.name
   node_group_name = "custom-managed-nodegroup"
@@ -173,28 +167,20 @@ resource "aws_eks_node_group" "managed_nodes" {
     version = "$Latest"
   }
 
-  remote_access {
-    ec2_ssh_key = "terraform-key_2025_2"
-    source_security_group_ids = [aws_security_group.bastion_sg.id]
-  }
-
   depends_on = [aws_eks_cluster.eks_cluster]
 }
 
-####################
-# Security Groups
-####################
 resource "aws_security_group" "bastion_sg" {
   name        = "bastion-sg"
   description = "Allow SSH access to bastion"
   vpc_id      = module.vpc.vpc_id
 
   ingress {
-    description      = "Allow SSH from anywhere"
-    from_port        = 22
-    to_port          = 22
-    protocol         = "tcp"
-    cidr_blocks      = ["0.0.0.0/0"]
+    description = "Allow SSH from anywhere"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   egress {
@@ -212,17 +198,17 @@ resource "aws_security_group" "eks_worker_sg" {
   vpc_id      = module.vpc.vpc_id
 
   ingress {
-    from_port       = 0
-    to_port         = 65535
-    protocol        = "tcp"
-    self            = true
+    from_port = 0
+    to_port   = 65535
+    protocol  = "tcp"
+    self      = true
   }
 
   ingress {
-    from_port       = 1025
-    to_port         = 65535
-    protocol        = "tcp"
-    self            = true
+    from_port = 1025
+    to_port   = 65535
+    protocol  = "tcp"
+    self      = true
   }
 
   egress {
@@ -233,11 +219,24 @@ resource "aws_security_group" "eks_worker_sg" {
   }
 }
 
-####################
-# Bastion Host EC2 Instance
-####################
+data "aws_ami" "amazon_linux_2" {
+  most_recent = true
+
+  filter {
+    name   = "name"
+    values = ["amzn2-ami-hvm-*-x86_64-gp2"]
+  }
+
+  filter {
+    name   = "owner-alias"
+    values = ["amazon"]
+  }
+
+  owners = ["amazon"]
+}
+
 resource "aws_instance" "bastion" {
-  ami           = "ami-0f9fc25dd2506cf6d" # Amazon Linux 2 in ap-south-1
+  ami           = data.aws_ami.amazon_linux_2.id
   instance_type = "t3.micro"
   subnet_id     = module.vpc.public_subnets[0]
   key_name      = "terraform-key_2025_2"
