@@ -96,7 +96,7 @@ resource "aws_eks_cluster" "eks_cluster" {
   name     = "example-eks-cluster"
   role_arn = aws_iam_role.eks_cluster_role.arn
 
-  version = "1.24"
+  version = "1.32"
 
   vpc_config {
     subnet_ids = module.vpc.private_subnets
